@@ -48,7 +48,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Azure Login (OIDC)
         uses: azure/login@v1
         with:
@@ -127,7 +127,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
         with:
@@ -136,7 +136,7 @@ jobs:
       
       - name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
-      
+
       - name: Validate GCP compliance
         id: validate
         env:
@@ -210,7 +210,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Validate repository secrets
         id: validate
         run: |
@@ -267,7 +267,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Validate expiration dates
         id: validate
         run: |
@@ -321,7 +321,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Attempt auto-remediation
         run: |
           echo "🔧 Attempting auto-remediation..."
@@ -344,7 +344,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Generate compliance report
         run: |
           apt-get update && apt-get install -y yq jq
@@ -422,7 +422,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Post drift detection report
         run: |
           AZURE_STATUS="${{ needs.validate-azure.outputs.azure_status }}"

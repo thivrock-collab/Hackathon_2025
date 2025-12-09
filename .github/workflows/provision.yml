@@ -31,8 +31,8 @@ jobs:
       is_admin: ${{ steps.validate-approval.outputs.is_admin }}
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           apt-get update
@@ -101,8 +101,8 @@ jobs:
       issue_number: ${{ steps.create-issue.outputs.issue_number }}
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Create approval issue
         id: create-issue
         run: |
@@ -168,8 +168,8 @@ jobs:
     timeout-minutes: 1440  # 24 hours
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Wait for approval comment
         run: |
           ISSUE_NUM="${{ needs.create-approval-issue.outputs.issue_number }}"
@@ -209,10 +209,10 @@ jobs:
       object_id: ${{ steps.create-sp.outputs.object_id }}
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Azure Login (OIDC)
-        uses: azure
+        uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -304,17 +304,17 @@ jobs:
       sa_name: ${{ steps.create-sa.outputs.sa_name }}
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Authenticate to GCP (Workload Identity)
-        uses: google-github-actions
+        uses: google-github-actions/auth@v1
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account_email: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       
       - name: Setup Cloud SDK
-        uses: google-github-actions
-      
+        uses: google-github-actions/setup-gcloud@v1
+
       - name: Create GCP Service Account
         id: create-sa
         env:
@@ -407,8 +407,8 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Store Azure credentials
         env:
           USERNAME: ${{ needs.parse-request.outputs.username }}
@@ -462,8 +462,8 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Update users.yml
         env:
           USERNAME: ${{ needs.parse-request.outputs.username }}
@@ -508,8 +508,8 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Create audit trail issue
         env:
           USERNAME: ${{ needs.parse-request.outputs.username }}
@@ -562,8 +562,8 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Send notification (optional)
         env:
           USERNAME: ${{ needs.parse-request.outputs.username }}
@@ -618,8 +618,8 @@ jobs:
     if: failure()
     
     steps:
-      - uses: actions
-      
+      - uses: actions/checkout@v4
+
       - name: Create failure issue
         env:
           USERNAME: ${{ needs.parse-request.outputs.username }}
