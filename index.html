@@ -309,9 +309,10 @@
 
   <script>
     // Configuration
-    const ORG = 'YOUR-ORG';
-    const REPO = 'landing-zone';
-    const RAW_URL = `https://raw.githubusercontent.com/${ORG}/${REPO}/main`;
+    const ORG = 'thivrock-collab';
+    const REPO = 'Hackathon_2025';
+    const BRANCH = 'main'; // Change to 'saithivyah/test' if you want to use your branch
+    const RAW_URL = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH}/landing-zone`;
 
     // DOM Elements
     const form = document.getElementById('access-form');
@@ -334,28 +335,41 @@
       try {
         // Try local server first, fallback to GitHub
         const response = await fetch('/roles.yml').catch(() => fetch(`${RAW_URL}/roles.yml`));
-        const yaml = await response.text();
 
-        // Simple YAML parser for roles section - match the second roles: block
-        const rolesBlocks = yaml.split(/\nroles:/g);
-        let rolesYaml = '';
-
-        if (rolesBlocks.length > 2) {
-          // Use the second roles block (more detailed one)
-          rolesYaml = rolesBlocks[2];
-        } else if (rolesBlocks.length > 1) {
-          rolesYaml = rolesBlocks[1];
+        if (!response.ok) {
+          throw new Error(`Failed to fetch roles.yml: ${response.status}`);
         }
 
-        // Extract role names (lines that start with 2 spaces and end with colon)
-        const roleMatches = rolesYaml.matchAll(/^  ([a-z][a-z0-9-]*):/gm);
+        const yaml = await response.text();
+        console.log('Loaded YAML:', yaml); // Debug log
 
+        // Find the roles: section
+        const rolesMatch = yaml.match(/\nroles:\s*\n([\s\S]*?)(?=\n\S|\n#\s*\w+:|$)/);
+
+        if (!rolesMatch) {
+          throw new Error('Could not find roles section in roles.yml');
+        }
+
+        const rolesSection = rolesMatch[1];
+
+        // Extract role names (lines that start with 2 spaces, letter, and end with colon)
+        // This matches: "  role-name:" at the beginning of a line
+        const roleMatches = rolesSection.matchAll(/^  ([a-z][a-z0-9-]*):/gm);
+
+        let roleCount = 0;
         for (const match of roleMatches) {
           const roleName = match[1];
           const option = document.createElement('option');
           option.value = roleName;
-          option.textContent = roleName;
+          option.textContent = roleName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
           roleSelect.appendChild(option);
+          roleCount++;
+        }
+
+        console.log(`Loaded ${roleCount} roles`); // Debug log
+
+        if (roleCount === 0) {
+          throw new Error('No roles found in roles.yml');
         }
       } catch (error) {
         showStatus('Failed to load roles. Please check your configuration.', 'error');
@@ -366,8 +380,10 @@
     // Update role description when selection changes
     async function updateRoleDescription() {
       const selectedRole = roleSelect.value;
+      const descDiv = document.getElementById('role-description');
+
       if (!selectedRole) {
-        document.getElementById('role-description').style.display = 'none';
+        descDiv.style.display = 'none';
         return;
       }
 
@@ -377,20 +393,32 @@
         const yaml = await response.text();
 
         // Extract description for selected role
+        // Look for:   role-name:
+        //               description: "text"
         const descMatch = yaml.match(new RegExp(
-          `^  ${selectedRole}:\\s*\\n\\s*description:\\s*["']?([^"'\\n]+)["']?`,
+          `^  ${selectedRole}:\\s*\\n\\s+description:\\s*["']?([^"'\\n]+)["']?`,
           'm'
         ));
 
-        const descDiv = document.getElementById('role-description');
+        // Also extract TTL info
+        const ttlMatch = yaml.match(new RegExp(
+          `^  ${selectedRole}:[\\s\\S]*?ttl_days:\\s*(\\d+)`,
+          'm'
+        ));
+
         if (descMatch) {
-          descDiv.textContent = descMatch[1];
+          let description = descMatch[1];
+          if (ttlMatch) {
+            description += ` (Access expires after ${ttlMatch[1]} days)`;
+          }
+          descDiv.innerHTML = `<strong>📋 Role Info:</strong> ${description}`;
           descDiv.style.display = 'block';
         } else {
           descDiv.style.display = 'none';
         }
       } catch (error) {
         console.error('Error loading role description:', error);
+        descDiv.style.display = 'none';
       }
     }
 

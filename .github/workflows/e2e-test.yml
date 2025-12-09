@@ -1,4 +1,4 @@
-name: E2E Test: Request -> Approve -> Provision (Simulation)
+name: 'E2E Test: Request -> Approve -> Provision (Simulation)'
 
 on:
   workflow_dispatch:
@@ -16,6 +16,16 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # CREDENTIAL REQUIRED: This workflow requires GITHUB_TOKEN or GH_TOKEN
+    # Token type: GitHub Personal Access Token (PAT) or GitHub Actions token
+    # Required scopes: repo, workflow, write:packages (for full functionality)
+    # To run locally: Set GH_TOKEN environment variable with your PAT
+    # Example: export GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub Actions provides this automatically
+      # For local testing, uncomment and set your token:
+      # GH_TOKEN: ${{ secrets.GH_PAT }}  # Add your PAT to repository secrets
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,27 +33,61 @@ jobs:
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y jq yq
 
-      - name: Simulate repository_dispatch role-request
+      # COMMENTED OUT: Requires GitHub API authentication
+      # CREDENTIAL: GitHub token with 'repo' scope to trigger repository dispatch events
+      # - name: Simulate repository_dispatch role-request
+      #   run: |
+      #     USER="${{ github.event.inputs.test_user }}"
+      #     gh api repos/${{ github.repository }}/dispatches -X POST -f event_type=role-request -F client_payload="{\"username\":\"${USER}\",\"role\":\"devops-full\"}"
+
+      - name: Simulate repository_dispatch role-request (SIMULATION MODE)
         run: |
           USER="${{ github.event.inputs.test_user }}"
-          gh api repos/${{ github.repository }}/dispatches -X POST -f event_type=role-request -F client_payload="{\"username\":\"${USER}\",\"role\":\"devops-full\"}"
+          echo "🔒 SIMULATION: Would trigger repository_dispatch event with:"
+          echo "  Event Type: role-request"
+          echo "  Username: ${USER}"
+          echo "  Role: devops-full"
+          echo "⚠️  To run for real, uncomment the 'gh api' command above and provide GITHUB_TOKEN"
 
-      - name: Wait for provisioning issue
+      # COMMENTED OUT: Requires GitHub API authentication to list issues
+      # CREDENTIAL: GitHub token with 'repo' scope to read issues
+      # - name: Wait for provisioning issue
+      #   run: |
+      #     echo "Waiting 30s for workflows to pick up the request..."
+      #     sleep 30
+      #     gh issue list --label provision --state all --limit 10
+
+      - name: Wait for provisioning issue (SIMULATION MODE)
         run: |
-          echo "Waiting 30s for workflows to pick up the request..."
+          echo "🔒 SIMULATION: Waiting 30s for workflows to pick up the request..."
           sleep 30
-          gh issue list --label provision --state all --limit 10
+          echo "⚠️  Would list issues with 'provision' label here"
+          echo "⚠️  To run for real, uncomment the 'gh issue list' command above and provide GITHUB_TOKEN"
 
-      - name: Add /approve comment to simulated issue
-        run: |
-          ISSUE=$(gh issue list --label provision --state open --json number,title --jq '.[] | select(.title|contains("Provision")) | .number' | head -n1)
-          if [ -n "$ISSUE" ]; then
-            gh issue comment $ISSUE --body "/approve"
-            echo "Posted /approve to issue #$ISSUE"
-          else
-            echo "No issue found to approve"; exit 1
-          fi
+      # COMMENTED OUT: Requires GitHub API authentication to comment on issues
+      # CREDENTIAL: GitHub token with 'repo' and 'issues:write' scope
+      # - name: Add /approve comment to simulated issue
+      #   run: |
+      #     ISSUE=$(gh issue list --label provision --state open --json number,title --jq '.[] | select(.title|contains("Provision")) | .number' | head -n1)
+      #     if [ -n "$ISSUE" ]; then
+      #       gh issue comment $ISSUE --body "/approve"
+      #       echo "Posted /approve to issue #$ISSUE"
+      #     else
+      #       echo "No issue found to approve"; exit 1
+      #     fi
 
-      - name: Check provision workflow runs
+      - name: Add /approve comment to simulated issue (SIMULATION MODE)
         run: |
-          gh run list --workflow=provision.yml --limit 5
+          echo "🔒 SIMULATION: Would find open provision issue and post '/approve' comment"
+          echo "⚠️  To run for real, uncomment the command above and provide GITHUB_TOKEN"
+
+      # COMMENTED OUT: Requires GitHub API authentication to list workflow runs
+      # CREDENTIAL: GitHub token with 'actions:read' scope
+      # - name: Check provision workflow runs
+      #   run: |
+      #     gh run list --workflow=provision.yml --limit 5
+
+      - name: Check provision workflow runs (SIMULATION MODE)
+        run: |
+          echo "🔒 SIMULATION: Would list recent provision.yml workflow runs here"
+          echo "⚠️  To run for real, uncomment the 'gh run list' command above and provide GITHUB_TOKEN"
