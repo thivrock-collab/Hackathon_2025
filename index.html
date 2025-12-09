@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Zone - Access Request Portal</title>
+  <link rel="stylesheet" href="https://primer.github.io/css/index.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--color-canvas-default);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: var(--color-canvas-subtle);
+      border: var(--color-border-default) solid 1px;
+      border-radius: 6px;
+      padding: 30px;
+      box-shadow: var(--color-shadow-small);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 30px;
+      gap: 15px;
+    }
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    h1 {
+      color: var(--color-fg-default);
+      margin: 0;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: var(--color-fg-muted);
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: var(--color-fg-default);
+      font-weight: 500;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border-default);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--color-canvas-default);
+      color: var(--color-fg-default);
+      box-sizing: border-box;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #1f6feb;
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #1f6feb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #388bfd;
+    }
+    .btn-secondary {
+      background: var(--color-btn-default-bg);
+      color: var(--color-fg-default);
+      border: 1px solid var(--color-border-default);
+    }
+    .btn-secondary:hover {
+      background: var(--color-btn-hover-bg);
+    }
+    .status {
+      display: none;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border-left: 4px solid;
+      animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .status.success {
+      background: #dafbe1;
+      border-left-color: #1a7f37;
+      color: #033a16;
+    }
+    .status.error {
+      background: #ffebe9;
+      border-left-color: #da3633;
+      color: #5e0b0b;
+    }
+    .status.info {
+      background: #ddf4ff;
+      border-left-color: #0969da;
+      color: #0a3622;
+    }
+    .status.loading {
+      background: #fff8c5;
+      border-left-color: #9e6a03;
+      color: #4d2d0c;
+    }
+    .help-text {
+      font-size: 12px;
+      color: var(--color-fg-muted);
+      margin-top: 4px;
+    }
+    .role-description {
+      font-size: 12px;
+      color: var(--color-fg-muted);
+      margin-top: 4px;
+      padding: 8px;
+      background: var(--color-neutral-subtle);
+      border-left: 2px solid var(--color-border-default);
+      border-radius: 3px;
+    }
+    .divider {
+      height: 1px;
+      background: var(--color-border-default);
+      margin: 20px 0;
+    }
+    .sso-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: var(--color-success-subtle);
+      border-left: 3px solid var(--color-success-fg);
+      border-radius: 4px;
+    }
+    .sso-info-icon {
+      color: var(--color-success-fg);
+      font-weight: bold;
+    }
+    .sso-info-text {
+      font-size: 13px;
+      color: var(--color-fg-default);
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--color-border-default);
+      border-top-color: #1f6feb;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .link-button {
+      display: inline-block;
+      color: #0969da;
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .link-button:hover {
+      text-decoration: underline;
+    }
+    .info-box {
+      background: var(--color-info-subtle);
+      border: 1px solid var(--color-border-default);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 13px;
+      color: var(--color-fg-default);
+      margin-bottom: 20px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid var(--color-border-default);
+      font-size: 12px;
+      color: var(--color-fg-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-icon">🔐</div>
+      <div>
+        <h1>Access Request</h1>
+        <p class="subtitle">Landing Zone IAM System</p>
+      </div>
+    </div>
+
+    <div id="sso-info" class="sso-info" style="display: none;">
+      <span class="sso-info-icon">✓</span>
+      <span class="sso-info-text">Enterprise SSO detected: <strong id="sso-username"></strong></span>
+    </div>
+
+    <form id="access-form">
+      <div class="info-box">
+        <strong>ℹ️ Before you start:</strong><br>
+        Requests are reviewed by the landing-zone-admins team. You'll receive email notification once approved.
+        Access will automatically expire based on the selected role.
+      </div>
+
+      <div class="form-group">
+        <label for="username">GitHub Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          placeholder="your-github-username" 
+          required
+        >
+        <div class="help-text">Your GitHub username (without @)</div>
+      </div>
+
+      <div class="form-group">
+        <label for="role">Requested Role</label>
+        <select id="role" name="role" required onchange="updateRoleDescription()">
+          <option value="">-- Select a role --</option>
+        </select>
+        <div id="role-description" class="role-description" style="display: none;"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="justification">Justification</label>
+        <textarea 
+          id="justification" 
+          name="justification" 
+          placeholder="Why do you need this access? (e.g., implementing feature X, debugging production issue)" 
+          required
+        ></textarea>
+        <div class="help-text">Required for audit trail and approval process</div>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <div class="button-group">
+        <button type="submit" class="btn-primary" id="submit-btn">Submit Request</button>
+        <button type="reset" class="btn-secondary">Clear Form</button>
+      </div>
+    </form>
+
+    <div class="divider"></div>
+
+    <div class="info-box">
+      <strong>📋 What happens next?</strong>
+      <ol style="margin: 8px 0 0 0; padding-left: 18px;">
+        <li>Your request is reviewed by admins</li>
+        <li>Approval email is sent to you</li>
+        <li>Access is automatically provisioned</li>
+        <li>You'll receive credential details</li>
+        <li>Access expires automatically per role TTL</li>
+      </ol>
+    </div>
+
+    <div class="footer">
+      <p>🔒 Landing Zone IAM System • 
+        <a href="https://github.com/YOUR-ORG/landing-zone#readme" class="link-button">Documentation</a> • 
+        <a href="https://github.com/YOUR-ORG/landing-zone/issues" class="link-button">Support</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const ORG = 'YOUR-ORG';
+    const REPO = 'landing-zone';
+    const RAW_URL = `https://raw.githubusercontent.com/${ORG}/${REPO}/main`;
+
+    // DOM Elements
+    const form = document.getElementById('access-form');
+    const usernameInput = document.getElementById('username');
+    const roleSelect = document.getElementById('role');
+    const justificationInput = document.getElementById('justification');
+    const statusDiv = document.getElementById('status');
+    const submitBtn = document.getElementById('submit-btn');
+    const ssoInfo = document.getElementById('sso-info');
+    const ssoUsername = document.getElementById('sso-username');
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadRoles();
+      await detectSSO();
+    });
+
+    // Load roles from roles.yml
+    async function loadRoles() {
+      try {
+        const response = await fetch(`${RAW_URL}/roles.yml`);
+        const yaml = await response.text();
+        
+        // Simple YAML parser for roles section
+        const rolesMatch = yaml.match(/^roles:\n([\s\S]*?)(?=\n\w+:|$)/m);
+        if (rolesMatch) {
+          const rolesYaml = rolesMatch[1];
+          const roleMatches = rolesYaml.matchAll(/^  (\w+(?:-\w+)*):\n/gm);
+          
+          for (const match of roleMatches) {
+            const roleName = match[1];
+            const option = document.createElement('option');
+            option.value = roleName;
+            option.textContent = roleName;
+            roleSelect.appendChild(option);
+          }
+        }
+      } catch (error) {
+        showStatus('Failed to load roles. Please check your GitHub username.', 'error');
+        console.error('Error loading roles:', error);
+      }
+    }
+
+    // Update role description when selection changes
+    async function updateRoleDescription() {
+      const selectedRole = roleSelect.value;
+      if (!selectedRole) {
+        document.getElementById('role-description').style.display = 'none';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${RAW_URL}/roles.yml`);
+        const yaml = await response.text();
+        
+        // Extract description for selected role
+        const descMatch = yaml.match(new RegExp(
+          `^  ${selectedRole}:\\n    description: ["']?([^"'\\n]+)["']?`,
+          'm'
+        ));
+        
+        const descDiv = document.getElementById('role-description');
+        if (descMatch) {
+          descDiv.textContent = descMatch[1];
+          descDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error loading role description:', error);
+      }
+    }
+
+    // Detect Enterprise SSO
+    async function detectSSO() {
+      try {
+        // Check for GitHub Enterprise user in session/DOM
+        const ssoUser = document.querySelector('[data-github-actor]')?.dataset.githubActor
+          || sessionStorage.getItem('github_actor');
+        
+        if (ssoUser) {
+          ssoInfo.style.display = 'flex';
+          ssoUsername.textContent = ssoUser;
+          usernameInput.value = ssoUser;
+          usernameInput.disabled = true;
+        }
+      } catch (error) {
+        // SSO detection failed, proceed normally
+        console.debug('SSO detection unavailable');
+      }
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const username = usernameInput.value.trim();
+      const role = roleSelect.value;
+      const justification = justificationInput.value.trim();
+
+      // Validation
+      if (!username || !role || !justification) {
+        showStatus('Please fill in all required fields', 'error');
+        return;
+      }
+
+      if (username.length < 3) {
+        showStatus('Invalid GitHub username', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+      
+      showStatus('Submitting your request...', 'loading');
+
+      try {
+        // Get GitHub token from local storage or prompt user
+        let token = localStorage.getItem('github_token');
+        
+        if (!token) {
+          token = prompt(
+            'Enter your GitHub Personal Access Token:\n\n' +
+            '(Required: repo scope)\n\n' +
+            'Create one at: https://github.com/settings/tokens'
+          );
+          
+          if (!token) {
+            showStatus('Token required to submit request', 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Request';
+            return;
+          }
+          
+          // Ask if user wants to save token (not recommended for security)
+          if (confirm('Save token in browser storage? (Not recommended)')) {
+            localStorage.setItem('github_token', token);
+          }
+        }
+
+        // Create repository_dispatch event
+        const response = await fetch(
+          `https://api.github.com/repos/${ORG}/${REPO}/dispatches`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              event_type: 'role-request',
+              client_payload: {
+                username: username,
+                role: role,
+                justification: justification,
+                submitted_at: new Date().toISOString()
+              }
+            })
+          }
+        );
+
+        if (response.status === 204) {
+          // Success - find the created issue
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for issue creation
+          
+          try {
+            const issueResponse = await fetch(
+              `https://api.github.com/repos/${ORG}/${REPO}/issues?labels=access-request&sort=created&direction=desc`,
+              {
+                headers: {
+                  'Authorization': `token ${token}`,
+                  'Accept': 'application/vnd.github.v3+json'
+                }
+              }
+            );
+            
+            const issues = await issueResponse.json();
+            const issueNum = issues[0]?.number || '';
+            const issueUrl = issueNum 
+              ? `https://github.com/${ORG}/${REPO}/issues/${issueNum}`
+              : `https://github.com/${ORG}/${REPO}/issues`;
+            
+            showStatus(
+              `✅ Request submitted! Issue: <a href="${issueUrl}" class="link-button">View issue</a><br>` +
+              `Check your email for approval notification.`,
+              'success'
+            );
+            
+            form.reset();
+            roleSelect.value = '';
+            document.getElementById('role-description').style.display = 'none';
+          } catch (err) {
+            showStatus(
+              `✅ Request submitted!<br>` +
+              `Check <a href="https://github.com/${ORG}/${REPO}/issues" class="link-button">GitHub Issues</a> for status.`,
+              'success'
+            );
+          }
+        } else if (response.status === 401) {
+          localStorage.removeItem('github_token');
+          showStatus('Invalid or expired token. Please try again.', 'error');
+        } else if (response.status === 403) {
+          showStatus(
+            'Permission denied. Your token needs "repo" scope. ' +
+            '<a href="https://github.com/settings/tokens" class="link-button">Create new token</a>',
+            'error'
+          );
+        } else {
+          const errorData = await response.json();
+          showStatus(
+            `Error: ${errorData.message || 'Failed to submit request'}`,
+            'error'
+          );
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+        console.error('Submission error:', error);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Request';
+      }
+    });
+
+    // Show status message
+    function showStatus(message, type) {
+      statusDiv.className = `status ${type}`;
+      statusDiv.innerHTML = message;
+      statusDiv.style.display = 'block';
+      
+      // Auto-hide info messages after 5 seconds
+      if (type === 'info') {
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    // Clear token from storage
+    function clearToken() {
+      if (confirm('Clear saved GitHub token?')) {
+        localStorage.removeItem('github_token');
+        showStatus('Token cleared from browser storage', 'info');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,657 @@
+name: Provision User Role
+
+on:
+  repository_dispatch:
+    types: [role-request]
+  issue_comment:
+    types: [created]
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+env:
+  GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+  ADMIN_ORG: YOUR-ORG
+
+jobs:
+  parse-request:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'repository_dispatch' || 
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/approve'))
+    
+    outputs:
+      username: ${{ steps.parse.outputs.username }}
+      role: ${{ steps.parse.outputs.role }}
+      action: ${{ steps.parse.outputs.action }}
+      issue_number: ${{ steps.parse.outputs.issue_number }}
+      approved: ${{ steps.validate-approval.outputs.approved }}
+      is_admin: ${{ steps.validate-approval.outputs.is_admin }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y yq jq curl
+          
+      - name: Parse dispatch payload
+        id: parse
+        run: |
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            USERNAME="${{ github.event.client_payload.username }}"
+            ROLE="${{ github.event.client_payload.role }}"
+            ACTION="provision"
+            ISSUE_NUMBER=""
+            echo "username=${USERNAME}" >> $GITHUB_OUTPUT
+            echo "role=${ROLE}" >> $GITHUB_OUTPUT
+            echo "action=${ACTION}" >> $GITHUB_OUTPUT
+          else
+            # Parse from issue comment
+            ISSUE_NUMBER="${{ github.event.issue.number }}"
+            ISSUE_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
+            
+            # Extract username from issue (e.g., [USER] alice-devops)
+            USERNAME=$(echo "$ISSUE_BODY" | grep -oP '\[USER\]\s+\K[^\s]+' | head -1)
+            ROLE=$(echo "$ISSUE_BODY" | grep -oP '\[ROLE\]\s+\K[^\s]+' | head -1)
+            
+            echo "username=${USERNAME}" >> $GITHUB_OUTPUT
+            echo "role=${ROLE}" >> $GITHUB_OUTPUT
+            echo "issue_number=${ISSUE_NUMBER}" >> $GITHUB_OUTPUT
+            echo "action=approve" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Validate approval
+        id: validate-approval
+        run: |
+          APPROVER="${{ github.actor }}"
+          
+          # Check if user is in landing-zone-admins team
+          IS_ADMIN=$(gh api "/orgs/${ADMIN_ORG}/teams/landing-zone-admins/memberships/${APPROVER}" \
+            --jq '.state' 2>/dev/null || echo "not_found")
+          
+          if [[ "$IS_ADMIN" == "active" ]]; then
+            echo "✅ Approval from authorized admin: @${APPROVER}"
+            echo "approved=true" >> $GITHUB_OUTPUT
+            echo "is_admin=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Approval from unauthorized user: @${APPROVER}"
+            echo "approved=false" >> $GITHUB_OUTPUT
+            echo "is_admin=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Validate role exists
+        run: |
+          ROLE="${{ steps.parse.outputs.role }}"
+          if ! yq eval ".roles.${ROLE}" roles.yml | grep -q "description"; then
+            echo "❌ Role not found: ${ROLE}"
+            exit 1
+          fi
+          echo "✅ Role validated: ${ROLE}"
+
+  create-approval-issue:
+    needs: parse-request
+    runs-on: ubuntu-latest
+    if: needs.parse-request.outputs.action == 'provision' && needs.parse-request.outputs.approved == 'false'
+    
+    outputs:
+      issue_number: ${{ steps.create-issue.outputs.issue_number }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create approval issue
+        id: create-issue
+        run: |
+          USERNAME="${{ needs.parse-request.outputs.username }}"
+          ROLE="${{ needs.parse-request.outputs.role }}"
+          REQUESTOR="${{ github.actor }}"
+          ISSUE_BODY=$(cat <<EOF
+          # Access Request
+
+          **Username:** \`${USERNAME}\`
+          **Role:** \`${ROLE}\`
+          **Requested by:** @${REQUESTOR}
+          **Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          **Justification:** ${{ github.event.client_payload.justification || 'N/A' }}
+
+          ## Role Details
+          $(yq eval ".roles.${ROLE}" roles.yml | sed 's/^/  /')
+
+          ## User Info
+          $(yq eval ".users[] | select(.username==\"${USERNAME}\")" users.yml | sed 's/^/  /')
+
+          ## Next Steps
+          1. Review requestor identity
+          2. Validate justification
+          3. Comment \`/approve\` to authorize provisioning
+          4. Or close issue to deny
+
+          **⏰ Approval timeout:** 24 hours from creation
+          **🔐 TTL:** $(yq eval ".roles.${ROLE}.ttl_days" roles.yml) days
+          EOF
+          )
+          
+          ISSUE_NUM=$(gh issue create \
+            --title "[ACCESS-REQUEST] @${USERNAME} → ${ROLE}" \
+            --body "${ISSUE_BODY}" \
+            --label "access-request,pending-approval" \
+            --assignee "${ADMIN_ORG}/landing-zone-admins" \
+            --json number -q .number)
+          
+          echo "issue_number=${ISSUE_NUM}" >> $GITHUB_OUTPUT
+          echo "✅ Created approval issue: #${ISSUE_NUM}"
+      
+      - name: Assign approvers
+        run: |
+          ISSUE_NUM="${{ steps.create-issue.outputs.issue_number }}"
+          # Get first 2 admins to assign
+          ADMINS=$(gh api "/orgs/${ADMIN_ORG}/teams/landing-zone-admins/members" \
+            --jq '.[0:2] | map(.login) | join(",")' 2>/dev/null || echo "")
+          
+          if [[ -n "$ADMINS" ]]; then
+            gh issue edit $ISSUE_NUM --add-assignee "$ADMINS" 2>/dev/null || true
+          fi
+      
+      - name: Post approval reminder
+        run: |
+          ISSUE_NUM="${{ steps.create-issue.outputs.issue_number }}"
+          gh issue comment $ISSUE_NUM --body "⏳ **Waiting for approval...**\n\nAdmins: Please review and comment \`/approve\` to proceed with provisioning."
+
+  wait-for-approval:
+    needs: [parse-request, create-approval-issue]
+    runs-on: ubuntu-latest
+    if: needs.parse-request.outputs.action == 'provision' && needs.parse-request.outputs.approved == 'false'
+    timeout-minutes: 1440  # 24 hours
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Wait for approval comment
+        run: |
+          ISSUE_NUM="${{ needs.create-approval-issue.outputs.issue_number }}"
+          APPROVED=false
+          TIMEOUT=86400  # 24 hours
+          ELAPSED=0
+          
+          while [[ "$APPROVED" == "false" ]] && [[ $ELAPSED -lt $TIMEOUT ]]; do
+            COMMENTS=$(gh issue view $ISSUE_NUM --json comments -q '.comments[].body')
+            
+            if echo "$COMMENTS" | grep -q "^/approve"; then
+              echo "✅ Approval found!"
+              APPROVED=true
+            else
+              echo "⏳ Waiting for approval... ($((TIMEOUT - ELAPSED))s remaining)"
+              sleep 30
+              ELAPSED=$((ELAPSED + 30))
+            fi
+          done
+          
+          if [[ "$APPROVED" == "false" ]]; then
+            echo "❌ Approval timeout - access request denied"
+            gh issue comment $ISSUE_NUM --body "⏱️ **Timeout** - Approval not received within 24 hours. Request denied. Please resubmit."
+            gh issue close $ISSUE_NUM --comment "Auto-closed: Approval timeout"
+            exit 1
+          fi
+
+  provision-azure:
+    needs: parse-request
+    runs-on: ubuntu-latest
+    if: |
+      (needs.parse-request.outputs.action == 'approve' && needs.parse-request.outputs.is_admin == 'true') ||
+      (needs.parse-request.outputs.action == 'provision' && needs.parse-request.outputs.approved == 'true')
+    
+    outputs:
+      client_id: ${{ steps.create-sp.outputs.client_id }}
+      object_id: ${{ steps.create-sp.outputs.object_id }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Create Azure Service Principal
+        id: create-sp
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+        run: |
+          # Install yq
+          apt-get update && apt-get install -y yq jq
+          
+          # Get role from roles.yml
+          AZURE_ROLE=$(yq eval ".roles.${ROLE}.azure.role" roles.yml)
+          SCOPE=$(yq eval ".roles.${ROLE}.azure.scope" roles.yml)
+          TTL_DAYS=$(yq eval ".roles.${ROLE}.ttl_days" roles.yml)
+          
+          # Generate unique SP name
+          SP_NAME="gh-${USERNAME}-${ROLE}-$(date +%s)"
+          
+          echo "📋 Creating Service Principal:"
+          echo "  Name: ${SP_NAME}"
+          echo "  Role: ${AZURE_ROLE}"
+          echo "  Scope: ${SCOPE}"
+          echo "  TTL: ${TTL_DAYS} days"
+          
+          # Create service principal with certificate
+          SP_OUTPUT=$(az ad sp create-for-rbac \
+            --name "${SP_NAME}" \
+            --role "${AZURE_ROLE}" \
+            --scopes "/subscriptions/${AZURE_SUBSCRIPTION_ID}" \
+            --years 1 \
+            --output json)
+          
+          CLIENT_ID=$(echo "$SP_OUTPUT" | jq -r '.clientId')
+          OBJECT_ID=$(echo "$SP_OUTPUT" | jq -r '.id')
+          TENANT_ID=$(echo "$SP_OUTPUT" | jq -r '.tenantId')
+          
+          echo "client_id=${CLIENT_ID}" >> $GITHUB_OUTPUT
+          echo "object_id=${OBJECT_ID}" >> $GITHUB_OUTPUT
+          
+          # Store certificates/keys for later retrieval
+          echo "$SP_OUTPUT" | jq . > /tmp/sp-output.json
+          
+          echo "✅ Service Principal created"
+          echo "  Client ID: ${CLIENT_ID}"
+          echo "  Object ID: ${OBJECT_ID}"
+      
+      - name: Configure Federated Credential
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          CLIENT_ID: ${{ steps.create-sp.outputs.client_id }}
+          OBJECT_ID: ${{ steps.create-sp.outputs.object_id }}
+        run: |
+          # Get app object ID from service principal
+          APP_ID=$(az ad sp show --id ${CLIENT_ID} --query appId -o tsv)
+          
+          echo "🔗 Configuring OIDC Federated Credential"
+          echo "  App ID: ${APP_ID}"
+          echo "  Subject: repo:YOUR-ORG/landing-zone:ref:refs/heads/main"
+          
+          # Create federated credential for GitHub OIDC
+          az ad app federated-credential create \
+            --id "${APP_ID}" \
+            --parameters @- <<EOF
+          {
+            "name": "github-actions",
+            "issuer": "https://token.actions.githubusercontent.com",
+            "subject": "repo:YOUR-ORG/landing-zone:ref:refs/heads/main",
+            "audiences": ["api://AzureADTokenExchange"],
+            "description": "GitHub Actions federated credential for landing-zone"
+          }
+          EOF
+          
+          echo "✅ Federated credential configured"
+          echo "   GitHub OIDC token can now authenticate as this SP"
+
+  provision-gcp:
+    needs: parse-request
+    runs-on: ubuntu-latest
+    if: |
+      (needs.parse-request.outputs.action == 'approve' && needs.parse-request.outputs.is_admin == 'true') ||
+      (needs.parse-request.outputs.action == 'provision' && needs.parse-request.outputs.approved == 'true')
+    
+    outputs:
+      sa_email: ${{ steps.create-sa.outputs.sa_email }}
+      sa_name: ${{ steps.create-sa.outputs.sa_name }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to GCP (Workload Identity)
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account_email: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+      
+      - name: Create GCP Service Account
+        id: create-sa
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          # Install yq
+          apt-get update && apt-get install -y yq
+          
+          # Get GCP role from roles.yml
+          GCP_ROLE=$(yq eval ".roles.${ROLE}.gcp.role" roles.yml)
+          
+          # Generate unique SA name
+          SA_NAME="gh-${USERNAME}-${ROLE}"
+          SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+          
+          echo "📋 Creating Service Account:"
+          echo "  Name: ${SA_NAME}"
+          echo "  Email: ${SA_EMAIL}"
+          echo "  Role: ${GCP_ROLE}"
+          
+          # Create service account
+          gcloud iam service-accounts create "${SA_NAME}" \
+            --display-name="${USERNAME} (${ROLE} - Landing Zone)" \
+            --project="${PROJECT_ID}" || {
+            if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+              echo "⚠️ Service account already exists: ${SA_EMAIL}"
+            else
+              echo "❌ Failed to create service account"
+              exit 1
+            fi
+          }
+          
+          echo "sa_email=${SA_EMAIL}" >> $GITHUB_OUTPUT
+          echo "sa_name=${SA_NAME}" >> $GITHUB_OUTPUT
+          
+          echo "✅ Service Account created: ${SA_EMAIL}"
+      
+      - name: Grant IAM Roles
+        env:
+          SA_EMAIL: ${{ steps.create-sa.outputs.sa_email }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          GCP_ROLE=$(yq eval ".roles.${ROLE}.gcp.role" roles.yml)
+          
+          echo "🔐 Granting IAM role: ${GCP_ROLE}"
+          
+          gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+            --member="serviceAccount:${SA_EMAIL}" \
+            --role="${GCP_ROLE}" \
+            --condition=None \
+            --quiet
+          
+          echo "✅ IAM role granted"
+      
+      - name: Configure Workload Identity Binding
+        env:
+          SA_EMAIL: ${{ steps.create-sa.outputs.sa_email }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "🔗 Configuring Workload Identity Binding"
+          echo "  Service Account: ${SA_EMAIL}"
+          
+          # Get workload identity pool resource name
+          POOL_NAME=$(gcloud iam workload-identity-pools list \
+            --project="${PROJECT_ID}" \
+            --location=global \
+            --filter="displayName:GitHub" \
+            --format="value(name)" | head -1)
+          
+          if [[ -z "$POOL_NAME" ]]; then
+            echo "⚠️ Warning: Workload Identity Pool not found"
+            echo "  Skipping WIF binding (GitHub OIDC fallback will be used)"
+          else
+            # Add workload identity user binding
+            gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
+              --project="${PROJECT_ID}" \
+              --role="roles/iam.workloadIdentityUser" \
+              --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/YOUR-ORG/landing-zone" \
+              --quiet
+            
+            echo "✅ Workload Identity binding configured"
+          fi
+
+  store-secrets:
+    needs: [parse-request, provision-azure, provision-gcp]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Store Azure credentials
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          CLIENT_ID: ${{ needs.provision-azure.outputs.client_id }}
+        run: |
+          echo "🔐 Storing Azure credentials as repository secrets"
+          
+          # Store Client ID
+          gh secret set "${USERNAME}-AZURE_CLIENT_ID" \
+            --body "${CLIENT_ID}"
+          
+          # Store Tenant ID (from secret)
+          TENANT_ID="${{ secrets.AZURE_TENANT_ID }}"
+          gh secret set "${USERNAME}-AZURE_TENANT_ID" \
+            --body "${TENANT_ID}"
+          
+          echo "✅ Azure secrets stored:"
+          echo "  - ${USERNAME}-AZURE_CLIENT_ID"
+          echo "  - ${USERNAME}-AZURE_TENANT_ID"
+      
+      - name: Store GCP credentials
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          SA_EMAIL: ${{ needs.provision-gcp.outputs.sa_email }}
+        run: |
+          echo "🔐 Storing GCP credentials as repository secrets"
+          
+          # Store Service Account Email
+          gh secret set "${USERNAME}-GCP_SA_EMAIL" \
+            --body "${SA_EMAIL}"
+          
+          # Store Project ID
+          PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+          gh secret set "${USERNAME}-GCP_PROJECT_ID" \
+            --body "${PROJECT_ID}"
+          
+          echo "✅ GCP secrets stored:"
+          echo "  - ${USERNAME}-GCP_SA_EMAIL"
+          echo "  - ${USERNAME}-GCP_PROJECT_ID"
+      
+      - name: Verify secrets
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+        run: |
+          echo "🔍 Verifying stored secrets"
+          gh secret list --json name | jq ".[] | select(.name | startswith(\"${USERNAME}-\")) | .name"
+
+  update-user-status:
+    needs: [parse-request, store-secrets]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Update users.yml
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+        run: |
+          apt-get update && apt-get install -y yq
+          
+          # Calculate expiration date
+          TTL_DAYS=$(yq eval ".roles.${ROLE}.ttl_days" roles.yml)
+          EXPIRATION=$(date -u -d "+${TTL_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          echo "📝 Updating user status in users.yml"
+          echo "  Username: ${USERNAME}"
+          echo "  Role: ${ROLE}"
+          echo "  Expires: ${EXPIRATION}"
+          
+          # Use yq to update user record
+          yq eval ".users |= map(
+            if .username == \"${USERNAME}\" then
+              .current_roles = [\"${ROLE}\"] |
+              .status = \"active\" |
+              .last_provisioned = \"${NOW}\" |
+              .expiration_date = \"${EXPIRATION}\"
+            else . end
+          )" -i users.yml
+          
+          echo "✅ User status updated"
+      
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add users.yml
+          git commit -m "chore: update user status for ${{ needs.parse-request.outputs.username }}" || true
+          git push || true
+
+  create-audit-issue:
+    needs: [parse-request, provision-azure, provision-gcp]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create audit trail issue
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+          CLIENT_ID: ${{ needs.provision-azure.outputs.client_id }}
+          SA_EMAIL: ${{ needs.provision-gcp.outputs.sa_email }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          AUDIT_BODY=$(cat <<EOF
+          # IAM Audit: Access Provisioned
+
+          **User:** \`${USERNAME}\`
+          **Role:** \`${ROLE}\`
+          **Provisioned by:** @${ACTOR}
+          **Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          ## Resources Created
+
+          ### Azure Service Principal
+          - **Client ID:** \`${CLIENT_ID}\`
+          - **Authentication:** Federated credential (GitHub OIDC)
+          - **Secret:** Stored as \`${USERNAME}-AZURE_CLIENT_ID\` in repo
+
+          ### GCP Service Account
+          - **Email:** \`${SA_EMAIL}\`
+          - **Authentication:** Workload Identity Federation
+          - **Secret:** Stored as \`${USERNAME}-GCP_SA_EMAIL\` in repo
+
+          ## Permissions Granted
+          $(yq eval ".roles.${ROLE} | to_entries | map(\"- **\(.key):** \(.value)\") | join(\"\\n\")" roles.yml)
+
+          ## Access Granted Until
+          $(yq eval ".users[] | select(.username==\"${USERNAME}\") | .expiration_date" users.yml)
+
+          ---
+          **Status:** ✅ Provisioning completed successfully
+          **Action:** Automated via GitHub Actions
+          EOF
+          )
+          
+          gh issue create \
+            --title "[AUDIT] Provisioned @${USERNAME} → ${ROLE}" \
+            --body "${AUDIT_BODY}" \
+            --label "iam-audit,provisioning" \
+            --state closed
+
+  notify-user:
+    needs: [parse-request]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Send notification (optional)
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Get user email from users.yml
+          USER_EMAIL=$(yq eval ".users[] | select(.username==\"${USERNAME}\") | .email" users.yml)
+          
+          if [[ -n "$RESEND_API_KEY" ]] && [[ -n "$USER_EMAIL" ]]; then
+            echo "📧 Sending email notification..."
+            
+            curl -X POST https://api.resend.com/emails \
+              -H "Authorization: Bearer ${RESEND_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d @- <<EOF
+            {
+              "from": "access-notifications@your-company.com",
+              "to": "${USER_EMAIL}",
+              "subject": "✅ Access Provisioned: ${ROLE}",
+              "html": "<h2>Access Granted</h2><p>Your ${ROLE} access has been provisioned.</p><p>Check your GitHub notifications for details.</p>"
+            }
+            EOF
+            echo "✅ Email sent"
+          fi
+          
+          if [[ -n "$SLACK_WEBHOOK_URL" ]]; then
+            echo "📢 Sending Slack notification..."
+            
+            curl -X POST "${SLACK_WEBHOOK_URL}" \
+              -H "Content-Type: application/json" \
+              -d @- <<EOF
+            {
+              "text": ":lock: New Access Provisioned",
+              "attachments": [{
+                "color": "good",
+                "fields": [
+                  {"title": "User", "value": "@${USERNAME}"},
+                  {"title": "Role", "value": "${ROLE}"},
+                  {"title": "Status", "value": "✅ Active"}
+                ]
+              }]
+            }
+            EOF
+            echo "✅ Slack notification sent"
+          fi
+
+  report-failure:
+    needs: [parse-request]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create failure issue
+        env:
+          USERNAME: ${{ needs.parse-request.outputs.username }}
+          ROLE: ${{ needs.parse-request.outputs.role }}
+        run: |
+          FAILURE_BODY=$(cat <<EOF
+          # ❌ Provisioning Failed
+
+          **User:** \`${USERNAME}\`
+          **Role:** \`${ROLE}\`
+          **Failed at:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          ## Troubleshooting
+
+          Check the workflow logs for detailed error information:
+          \`\`\`
+          gh run view ${{ github.run_id }} --log
+          \`\`\`
+
+          Common issues:
+          - Missing or invalid secrets
+          - Insufficient Azure/GCP permissions
+          - Role not defined in roles.yml
+          - User not found in users.yml
+
+          **Action:** Review logs and retry after fixing the issue.
+          EOF
+          )
+          
+          gh issue create \
+            --title "[FAILED] Provisioning @${USERNAME} → ${ROLE}" \
+            --body "${FAILURE_BODY}" \
+            --label "iam-audit,failed,needs-triage" \
+            --assignee "${ADMIN_ORG}/landing-zone-admins"

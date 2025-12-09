@@ -1,0 +1,141 @@
+{
+  "expected_repo_secrets": [
+    "AZURE_CLIENT_ID",
+    "AZURE_CLIENT_SECRET",
+    "GCP_SA_KEY"
+  ],
+  "expected_service_principals": {
+    "azure": [
+      { "name_prefix": "gh-sp-", "max_age_days": 90 }
+    ],
+    "gcp": [
+      { "name_prefix": "gh-sa-", "max_age_days": 90 }
+    ]
+  },
+  "alerts": {
+    "slack_channel": "#ops-alerts",
+    "email_group": "cloud-admins@acme.example"
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2025-12-08T00:00:00Z",
+    "description": "Expected state for drift detection - defines what should exist vs what actually exists"
+  },
+  "expected_state": {
+    "azure_service_principals": {
+      "alice-devops": {
+        "role": "Contributor",
+        "scope": "subscription",
+        "federated_credential_enabled": true,
+        "status": "active"
+      },
+      "bob-devops": {
+        "role": "Website Contributor",
+        "scope": "subscription",
+        "federated_credential_enabled": true,
+        "status": "active"
+      },
+      "carol-security": {
+        "role": "Security Reader",
+        "scope": "subscription",
+        "federated_credential_enabled": true,
+        "status": "active"
+      },
+      "dan-reader": {
+        "role": "Reader",
+        "scope": "subscription",
+        "federated_credential_enabled": true,
+        "status": "active"
+      }
+    },
+    "gcp_service_accounts": {
+      "alice-devops": {
+        "display_name": "alice-devops (Landing Zone)",
+        "roles": ["roles/editor"],
+        "workload_identity_enabled": true,
+        "status": "active"
+      },
+      "bob-devops": {
+        "display_name": "bob-devops (Landing Zone)",
+        "roles": ["roles/compute.admin"],
+        "workload_identity_enabled": true,
+        "status": "active"
+      },
+      "carol-security": {
+        "display_name": "carol-security (Landing Zone)",
+        "roles": ["roles/securityreviewer"],
+        "workload_identity_enabled": true,
+        "status": "active"
+      },
+      "dan-reader": {
+        "display_name": "dan-reader (Landing Zone)",
+        "roles": ["roles/viewer"],
+        "workload_identity_enabled": true,
+        "status": "active"
+      }
+    },
+    "repository_secrets": {
+      "required_prefixes": ["alice-devops-", "bob-devops-", "carol-security-", "dan-reader-"],
+      "required_secret_names": [
+        "AZURE_CLIENT_ID",
+        "AZURE_CLIENT_SECRET",
+        "GCP_SA_EMAIL",
+        "GCP_SA_KEY"
+      ]
+    },
+    "audit_trail": {
+      "github_issues": {
+        "labels": ["iam-audit", "access-request", "approval", "drift-detected"],
+        "required": true
+      },
+      "issue_retention_days": 90
+    }
+  },
+  "remediation_policies": {
+    "missing_secrets": {
+      "action": "recreate",
+      "escalate_after_attempts": 3,
+      "max_age_days": 90
+    },
+    "expired_principals": {
+      "action": "suspend_immediately",
+      "notify_user": true,
+      "audit_retention_days": 180
+    },
+    "unauthorized_changes": {
+      "action": "revert",
+      "escalate_to": "security-team",
+      "block_until_reviewed": true
+    },
+    "missing_mfa": {
+      "action": "suspend",
+      "grace_period_hours": 24,
+      "send_notification": true
+    }
+  },
+  "validation_rules": {
+    "secret_rotation": {
+      "min_days": 1,
+      "max_days": 90,
+      "check_frequency": "daily"
+    },
+    "access_review": {
+      "frequency": "quarterly",
+      "required_approver_count": 2,
+      "auto_revoke_if_unreviewed": true
+    },
+    "compliance_checks": [
+      "mfa_enabled_for_high_privilege",
+      "service_principal_federation_enabled",
+      "workload_identity_configured",
+      "secrets_rotated_within_ttl",
+      "no_orphaned_principals"
+    ]
+  },
+  "sla_targets": {
+    "drift_detection_frequency_minutes": 60,
+    "remediation_max_time_minutes": 10,
+    "notification_max_time_minutes": 5,
+    "issue_creation_max_time_minutes": 2
+  }
+}

@@ -1,0 +1,99 @@
+roles:
+  devops-full:
+    azure: "Contributor"
+    gcp: "Editor"
+    ttl_days: 90
+  devops-limited:
+    azure: "Contributor"
+    gcp: "Viewer"
+    ttl_days: 60
+  reader:
+    azure: "Reader"
+    gcp: "Viewer"
+    ttl_days: 30
+  security:
+    azure: "SecurityReader"
+    gcp: "SecurityReviewer"
+    ttl_days: 30
+# Landing Zone IAM Role Matrix
+# Define permissions, TTL, and provisioning templates
+roles:
+  devops-full:
+    description: "Full DevOps access - Contributor level"
+    azure:
+      role: "Contributor"
+      scope: "/subscriptions"
+    gcp:
+      role: "Editor"
+      scope: "projects"
+    ttl_days: 90
+    requires_mfa: true
+    audit_frequency: "daily"
+  
+  devops-limited:
+    description: "Limited DevOps access - deployment only"
+    azure:
+      role: "Website Contributor"
+      scope: "/subscriptions"
+    gcp:
+      role: "Compute Admin"
+      scope: "projects"
+    ttl_days: 60
+    requires_mfa: true
+    audit_frequency: "daily"
+  
+  reader:
+    description: "Read-only access for auditors and analysts"
+    azure:
+      role: "Reader"
+      scope: "/subscriptions"
+    gcp:
+      role: "Viewer"
+      scope: "projects"
+    ttl_days: 30
+    requires_mfa: false
+    audit_frequency: "weekly"
+  
+  security:
+    description: "Security team - compliance and threat detection"
+    azure:
+      role: "Security Reader"
+      scope: "/subscriptions"
+    gcp:
+      role: "Security Reviewer"
+      scope: "projects"
+    ttl_days: 180
+    requires_mfa: true
+    audit_frequency: "daily"
+  
+  platform-engineering:
+    description: "Platform team - infrastructure management"
+    azure:
+      role: "Contributor"
+      scope: "/subscriptions"
+    gcp:
+      role: "Editor"
+      scope: "projects"
+    ttl_days: 90
+    requires_mfa: true
+    audit_frequency: "daily"
+
+# Provisioning templates for custom keys
+provisioning_templates:
+  azure_sp:
+    fields: ["subscription_id", "resource_group", "ttl_days"]
+    example: "Contributor access to specific resource group"
+  gcp_sa:
+    fields: ["project_id", "scope", "ttl_days"]
+    example: "Custom service account with selected IAM roles"
+  custom_secret:
+    fields: ["secret_name", "secret_value", "scope", "ttl_days"]
+    example: "Custom configuration or credential storage"
+
+# Approval workflow settings
+approval_settings:
+  require_mfa_for_approval: true
+  approval_timeout_hours: 24
+  auto_deny_if_no_approval: true
+  require_change_justification: true
+  min_approvers: 1

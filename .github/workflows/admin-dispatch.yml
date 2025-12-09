@@ -1,0 +1,68 @@
+name: Admin Dispatch Auto-Approve
+
+on:
+  repository_dispatch:
+    types: [admin-provision]
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+env:
+  ADMIN_ORG: ACME-ENTERPRISE
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Parse payload
+        run: |
+          echo '${{ toJson(github.event) }}' > /tmp/payload.json
+          USER=$(jq -r '.client_payload.username' /tmp/payload.json)
+          TYPE=$(jq -r '.client_payload.type // .client_payload.provisioning_type // "standard"' /tmp/payload.json)
+          echo "USER=$USER" > /tmp/vars
+          echo "TYPE=$TYPE" >> /tmp/vars
+
+      - name: Validate admin membership
+        id: validate
+        run: |
+          ADMIN="${{ github.actor }}"
+          ORG="${{ env.ADMIN_ORG }}"
+          echo "Checking admin membership for @${ADMIN} in ${ORG}"
+          set +e
+          STATE=$(gh api "/orgs/${ORG}/teams/landing-zone-admins/memberships/${ADMIN}" --jq '.state' 2>/dev/null || echo "not_found")
+          set -e
+          if [ "$STATE" = "active" ]; then
+            echo "is_admin=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_admin=false" >> $GITHUB_OUTPUT
+            echo "Admin validation failed for ${ADMIN}" >&2
+            exit 1
+          fi
+
+      - name: Create pre-approved issue
+        if: steps.validate.outputs.is_admin == 'true'
+        id: create_issue
+        run: |
+          source /tmp/vars
+          ISSUE_NUM=$(gh issue create --title "Admin Provision: ${USER} -> ${TYPE}" --body "Admin console provisioning requested by @${{ github.actor }}\n\nPayload:\n$(jq -c '.client_payload' /tmp/payload.json)" --label provision,auto-approved --json number -q .number)
+          echo "issue_number=${ISSUE_NUM}" >> $GITHUB_OUTPUT
+
+      - name: Post /approve to trigger provisioning
+        if: steps.validate.outputs.is_admin == 'true'
+        run: |
+          source /tmp/vars
+          ISSUE_NUM=${{ steps.create_issue.outputs.issue_number }}
+          if [ -n "$ISSUE_NUM" ]; then
+            gh issue comment $ISSUE_NUM --body "/approve"
+          else
+            echo "Could not find created issue to comment /approve"
+          fi

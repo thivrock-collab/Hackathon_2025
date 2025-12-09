@@ -1,0 +1,49 @@
+name: E2E Test: Request -> Approve -> Provision (Simulation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_user:
+        description: 'Test GitHub username'
+        required: true
+        default: 'test-runner'
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq yq
+
+      - name: Simulate repository_dispatch role-request
+        run: |
+          USER="${{ github.event.inputs.test_user }}"
+          gh api repos/${{ github.repository }}/dispatches -X POST -f event_type=role-request -F client_payload="{\"username\":\"${USER}\",\"role\":\"devops-full\"}"
+
+      - name: Wait for provisioning issue
+        run: |
+          echo "Waiting 30s for workflows to pick up the request..."
+          sleep 30
+          gh issue list --label provision --state all --limit 10
+
+      - name: Add /approve comment to simulated issue
+        run: |
+          ISSUE=$(gh issue list --label provision --state open --json number,title --jq '.[] | select(.title|contains("Provision")) | .number' | head -n1)
+          if [ -n "$ISSUE" ]; then
+            gh issue comment $ISSUE --body "/approve"
+            echo "Posted /approve to issue #$ISSUE"
+          else
+            echo "No issue found to approve"; exit 1
+          fi
+
+      - name: Check provision workflow runs
+        run: |
+          gh run list --workflow=provision.yml --limit 5
