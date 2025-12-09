@@ -31,7 +31,7 @@ jobs:
       is_admin: ${{ steps.validate-approval.outputs.is_admin }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Install dependencies
         run: |
@@ -101,7 +101,7 @@ jobs:
       issue_number: ${{ steps.create-issue.outputs.issue_number }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Create approval issue
         id: create-issue
@@ -168,7 +168,7 @@ jobs:
     timeout-minutes: 1440  # 24 hours
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Wait for approval comment
         run: |
@@ -209,10 +209,10 @@ jobs:
       object_id: ${{ steps.create-sp.outputs.object_id }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Azure Login (OIDC)
-        uses: azure/login@v1
+        uses: azure
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -304,16 +304,16 @@ jobs:
       sa_name: ${{ steps.create-sa.outputs.sa_name }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Authenticate to GCP (Workload Identity)
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account_email: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       
       - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions
       
       - name: Create GCP Service Account
         id: create-sa
@@ -407,7 +407,7 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Store Azure credentials
         env:
@@ -462,7 +462,7 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Update users.yml
         env:
@@ -508,7 +508,7 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Create audit trail issue
         env:
@@ -562,7 +562,7 @@ jobs:
     if: success()
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Send notification (optional)
         env:
@@ -618,7 +618,7 @@ jobs:
     if: failure()
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions
       
       - name: Create failure issue
         env:

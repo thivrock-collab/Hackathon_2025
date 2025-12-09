@@ -332,25 +332,33 @@
     // Load roles from roles.yml
     async function loadRoles() {
       try {
-        const response = await fetch(`${RAW_URL}/roles.yml`);
+        // Try local server first, fallback to GitHub
+        const response = await fetch('/roles.yml').catch(() => fetch(`${RAW_URL}/roles.yml`));
         const yaml = await response.text();
-        
-        // Simple YAML parser for roles section
-        const rolesMatch = yaml.match(/^roles:\n([\s\S]*?)(?=\n\w+:|$)/m);
-        if (rolesMatch) {
-          const rolesYaml = rolesMatch[1];
-          const roleMatches = rolesYaml.matchAll(/^  (\w+(?:-\w+)*):\n/gm);
-          
-          for (const match of roleMatches) {
-            const roleName = match[1];
-            const option = document.createElement('option');
-            option.value = roleName;
-            option.textContent = roleName;
-            roleSelect.appendChild(option);
-          }
+
+        // Simple YAML parser for roles section - match the second roles: block
+        const rolesBlocks = yaml.split(/\nroles:/g);
+        let rolesYaml = '';
+
+        if (rolesBlocks.length > 2) {
+          // Use the second roles block (more detailed one)
+          rolesYaml = rolesBlocks[2];
+        } else if (rolesBlocks.length > 1) {
+          rolesYaml = rolesBlocks[1];
+        }
+
+        // Extract role names (lines that start with 2 spaces and end with colon)
+        const roleMatches = rolesYaml.matchAll(/^  ([a-z][a-z0-9-]*):/gm);
+
+        for (const match of roleMatches) {
+          const roleName = match[1];
+          const option = document.createElement('option');
+          option.value = roleName;
+          option.textContent = roleName;
+          roleSelect.appendChild(option);
         }
       } catch (error) {
-        showStatus('Failed to load roles. Please check your GitHub username.', 'error');
+        showStatus('Failed to load roles. Please check your configuration.', 'error');
         console.error('Error loading roles:', error);
       }
     }
@@ -364,19 +372,22 @@
       }
 
       try {
-        const response = await fetch(`${RAW_URL}/roles.yml`);
+        // Try local server first, fallback to GitHub
+        const response = await fetch('/roles.yml').catch(() => fetch(`${RAW_URL}/roles.yml`));
         const yaml = await response.text();
-        
+
         // Extract description for selected role
         const descMatch = yaml.match(new RegExp(
-          `^  ${selectedRole}:\\n    description: ["']?([^"'\\n]+)["']?`,
+          `^  ${selectedRole}:\\s*\\n\\s*description:\\s*["']?([^"'\\n]+)["']?`,
           'm'
         ));
-        
+
         const descDiv = document.getElementById('role-description');
         if (descMatch) {
           descDiv.textContent = descMatch[1];
           descDiv.style.display = 'block';
+        } else {
+          descDiv.style.display = 'none';
         }
       } catch (error) {
         console.error('Error loading role description:', error);
