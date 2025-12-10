@@ -8,11 +8,11 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   issues: write
 
 env:
-  GH_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+  GH_TOKEN: ${{ github.token }}
   ADMIN_ORG: thivrock-collab
 
 jobs:
@@ -68,19 +68,27 @@ jobs:
         id: validate-approval
         run: |
           APPROVER="${{ github.actor }}"
-          
-          # Check if user is in landing-zone-admins team
-          IS_ADMIN=$(gh api "/orgs/${ADMIN_ORG}/teams/landing-zone-admins/memberships/${APPROVER}" \
-            --jq '.state' 2>/dev/null || echo "not_found")
-          
-          if [[ "$IS_ADMIN" == "active" ]]; then
+
+          # List of admin users (for personal repos without org teams)
+          ADMIN_USERS=("thivrock-collab" "saithivyah")
+
+          # Check if approver is in admin list
+          IS_ADMIN="false"
+          for admin in "${ADMIN_USERS[@]}"; do
+            if [[ "$APPROVER" == "$admin" ]]; then
+              IS_ADMIN="true"
+              break
+            fi
+          done
+
+          if [[ "$IS_ADMIN" == "true" ]] && [[ "${{ github.event_name }}" == "issue_comment" ]]; then
             echo "✅ Approval from authorized admin: @${APPROVER}"
             echo "approved=true" >> $GITHUB_OUTPUT
             echo "is_admin=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ Approval from unauthorized user: @${APPROVER}"
+            echo "Validation: actor=$APPROVER, event=${{ github.event_name }}, is_admin=$IS_ADMIN"
             echo "approved=false" >> $GITHUB_OUTPUT
-            echo "is_admin=false" >> $GITHUB_OUTPUT
+            echo "is_admin=$IS_ADMIN" >> $GITHUB_OUTPUT
           fi
       
       - name: Validate role exists
