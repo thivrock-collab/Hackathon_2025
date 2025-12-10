@@ -12,8 +12,8 @@ permissions:
   issues: write
 
 env:
-  GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
-  ADMIN_ORG: YOUR-ORG
+  GH_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+  ADMIN_ORG: thivrock-collab
 
 jobs:
   parse-request:
@@ -35,8 +35,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt-get update
-          apt-get install -y yq jq curl
+          sudo apt-get update
+          sudo apt-get install -y yq jq curl
           
       - name: Parse dispatch payload
         id: parse
@@ -225,7 +225,7 @@ jobs:
           ROLE: ${{ needs.parse-request.outputs.role }}
         run: |
           # Install yq
-          apt-get update && apt-get install -y yq jq
+          sudo apt-get update && sudo apt-get install -y yq jq
           
           # Get role from roles.yml
           AZURE_ROLE=$(yq eval ".roles.${ROLE}.azure.role" roles.yml)
@@ -274,7 +274,7 @@ jobs:
           
           echo "🔗 Configuring OIDC Federated Credential"
           echo "  App ID: ${APP_ID}"
-          echo "  Subject: repo:YOUR-ORG/landing-zone:ref:refs/heads/main"
+          echo "  Subject: repo:thivrock-collab/Hackathon_2025:ref:refs/heads/main"
           
           # Create federated credential for GitHub OIDC
           az ad app federated-credential create \
@@ -283,9 +283,9 @@ jobs:
           {
             "name": "github-actions",
             "issuer": "https://token.actions.githubusercontent.com",
-            "subject": "repo:YOUR-ORG/landing-zone:ref:refs/heads/main",
+            "subject": "repo:thivrock-collab/Hackathon_2025:ref:refs/heads/main",
             "audiences": ["api://AzureADTokenExchange"],
-            "description": "GitHub Actions federated credential for landing-zone"
+            "description": "GitHub Actions federated credential for Hackathon_2025"
           }
           EOF
           
@@ -323,7 +323,7 @@ jobs:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           # Install yq
-          apt-get update && apt-get install -y yq
+          sudo apt-get update && sudo apt-get install -y yq
           
           # Get GCP role from roles.yml
           GCP_ROLE=$(yq eval ".roles.${ROLE}.gcp.role" roles.yml)
@@ -395,7 +395,7 @@ jobs:
             gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
               --project="${PROJECT_ID}" \
               --role="roles/iam.workloadIdentityUser" \
-              --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/YOUR-ORG/landing-zone" \
+              --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/thivrock-collab/Hackathon_2025" \
               --quiet
             
             echo "✅ Workload Identity binding configured"
@@ -469,8 +469,8 @@ jobs:
           USERNAME: ${{ needs.parse-request.outputs.username }}
           ROLE: ${{ needs.parse-request.outputs.role }}
         run: |
-          apt-get update && apt-get install -y yq
-          
+          sudo apt-get update && sudo apt-get install -y yq
+
           # Calculate expiration date
           TTL_DAYS=$(yq eval ".roles.${ROLE}.ttl_days" roles.yml)
           EXPIRATION=$(date -u -d "+${TTL_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)

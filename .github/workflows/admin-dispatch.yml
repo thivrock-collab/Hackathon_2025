@@ -10,7 +10,8 @@ permissions:
   issues: write
 
 env:
-  ADMIN_ORG: ACME-ENTERPRISE
+  GH_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN}}
+  ADMIN_ORG: thivrock-collab
 
 jobs:
   auto-approve:

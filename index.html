@@ -300,9 +300,10 @@
     </div>
 
     <div class="footer">
-      <p>🔒 Landing Zone IAM System • 
-        <a href="https://github.com/YOUR-ORG/landing-zone#readme" class="link-button">Documentation</a> • 
-        <a href="https://github.com/YOUR-ORG/landing-zone/issues" class="link-button">Support</a>
+      <p>🔒 Landing Zone IAM System •
+        <a href="https://github.com/thivrock-collab/Hackathon_2025#readme" class="link-button">Documentation</a> •
+        <a href="https://github.com/thivrock-collab/Hackathon_2025/issues" class="link-button">Support</a> •
+        <a href="javascript:clearToken()" class="link-button">Clear Saved Token</a>
       </p>
     </div>
   </div>
@@ -552,9 +553,11 @@
           localStorage.removeItem('github_token');
           showStatus('Invalid or expired token. Please try again.', 'error');
         } else if (response.status === 403) {
+          localStorage.removeItem('github_token');
           showStatus(
             'Permission denied. Your token needs "repo" scope. ' +
-            '<a href="https://github.com/settings/tokens" class="link-button">Create new token</a>',
+            '<a href="https://github.com/settings/tokens/new?scopes=repo&description=Landing%20Zone%20Portal" target="_blank" class="link-button">Create new token</a>' +
+            ' (Token cleared - refresh page to try again)',
             'error'
           );
         } else {

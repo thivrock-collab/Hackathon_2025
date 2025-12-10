@@ -312,12 +312,18 @@
       </div>
       <div class="auth-status">
         <div class="auth-badge" id="auth-status">Checking...</div>
+        <button onclick="clearToken()" style="margin-top: 8px; padding: 4px 8px; font-size: 11px; background: var(--color-btn-default-bg); border: 1px solid var(--color-border-default); border-radius: 4px; cursor: pointer;">
+          Clear Token
+        </button>
       </div>
     </div>
 
     <div class="tabs">
       <button class="tab-button active" onclick="switchTab('provision')">
         ⚙️ Provision Access
+      </button>
+      <button class="tab-button" onclick="switchTab('requests')">
+        📨 Pending Requests
       </button>
       <button class="tab-button" onclick="switchTab('users')">
         👥 User Directory
@@ -426,6 +432,33 @@
       </div>
     </div>
 
+    <!-- Pending Requests Tab -->
+    <div id="requests" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Pending Access Requests</div>
+        <div id="requests-status" class="status"></div>
+        <div style="overflow-x: auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Justification</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="requests-table">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--color-fg-muted);">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Users Tab -->
     <div id="users" class="tab-panel">
       <div class="card">
@@ -504,10 +537,14 @@
 
   <script>
     // Configuration
-    const ORG = 'YOUR-ORG';
-    const REPO = 'landing-zone';
-    const RAW_URL = `https://raw.githubusercontent.com/${ORG}/${REPO}/main`;
+    const ORG = 'thivrock-collab';
+    const REPO = 'Hackathon_2025';
+    const BRANCH = 'saithivyah/test'; // Change to 'main' after merging
+    const RAW_URL = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH}`;
     const API_URL = `https://api.github.com/repos/${ORG}/${REPO}`;
+
+    // Admin users (since we're using a personal account, not an org)
+    const ADMIN_USERS = ['thivrock-collab']; // Add more usernames as needed
 
     // State
     let users = [];
@@ -521,6 +558,7 @@
       if (isAdmin) {
         await loadRoles();
         await loadUsers();
+        await loadPendingRequests();
         await loadAuditLog();
       }
     });
@@ -541,39 +579,26 @@
       }
 
       try {
-        // Check if user is in landing-zone-admins team
-        const response = await fetch(
-          `https://api.github.com/orgs/${ORG}/teams/landing-zone-admins/memberships`,
-          {
-            headers: {
-              'Authorization': `token ${token}`,
-              'Accept': 'application/vnd.github.v3+json'
-            }
-          }
-        );
+        // Get current user first
+        const currentUser = await getCurrentUser();
+        console.log('Authenticated as:', currentUser);
 
-        if (response.ok) {
-          const members = await response.json();
-          const currentUser = await getCurrentUser();
-          
-          const isAdminMember = members.some(m => m.url.includes(`/memberships/${currentUser}`));
-          
-          if (isAdminMember) {
-            isAdmin = true;
-            authBadge.innerHTML = `✅ Admin: ${currentUser}`;
-            authBadge.className = 'auth-badge';
-          } else {
-            authBadge.innerHTML = `⛔ Access Denied: ${currentUser}`;
-            authBadge.className = 'auth-badge unauthorized';
-            disableAllControls();
-          }
+        // Check if user is in the admin list
+        if (ADMIN_USERS.includes(currentUser)) {
+          isAdmin = true;
+          authBadge.innerHTML = `✅ Admin: ${currentUser}`;
+          authBadge.className = 'auth-badge';
+          console.log('User is authorized admin');
         } else {
-          throw new Error('Failed to verify admin status');
+          authBadge.innerHTML = `⛔ Access Denied: ${currentUser}`;
+          authBadge.className = 'auth-badge unauthorized';
+          disableAllControls();
+          console.error('User is not in ADMIN_USERS list');
         }
       } catch (error) {
         localStorage.removeItem('github_token');
         token = null;
-        authBadge.innerHTML = '❌ Authentication Failed';
+        authBadge.innerHTML = `❌ Auth Failed: ${error.message}`;
         authBadge.className = 'auth-badge unauthorized';
         disableAllControls();
         console.error('Auth error:', error);
@@ -588,7 +613,19 @@
           'Accept': 'application/vnd.github.v3+json'
         }
       });
+
+      if (!response.ok) {
+        console.error('Failed to get current user:', response.status);
+        throw new Error(`Failed to authenticate: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('Current user data:', data);
+
+      if (!data.login) {
+        throw new Error('No login in user data');
+      }
+
       return data.login;
     }
 
@@ -924,6 +961,68 @@
       }
     }
 
+    // Load pending requests
+    async function loadPendingRequests() {
+      try {
+        const response = await fetch(
+          `${API_URL}/issues?labels=access-request&state=open&sort=created&direction=desc&per_page=20`,
+          {
+            headers: {
+              'Authorization': `token ${token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          }
+        );
+
+        const issues = await response.json();
+        const tbody = document.getElementById('requests-table');
+        tbody.innerHTML = '';
+
+        if (issues.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-fg-muted);">No pending requests</td></tr>';
+          return;
+        }
+
+        issues.forEach(issue => {
+          const row = document.createElement('tr');
+          const date = new Date(issue.created_at).toLocaleString();
+
+          // Extract username and role from issue title: [ACCESS-REQUEST] @username → role
+          const titleMatch = issue.title.match(/\[ACCESS-REQUEST\]\s*@(\S+)\s*→\s*(\S+)/);
+          const username = titleMatch ? titleMatch[1] : 'N/A';
+          const role = titleMatch ? titleMatch[2] : 'N/A';
+
+          // Extract justification from issue body
+          const bodyMatch = issue.body?.match(/\*\*Justification:\*\*\s*(.+)/);
+          const justification = bodyMatch ? bodyMatch[1] : 'N/A';
+
+          // Check if pending approval or approved
+          const isPending = issue.labels.some(l => l.name === 'pending-approval');
+          const statusBadge = isPending
+            ? '<span class="badge" style="background: var(--color-attention-subtle); color: var(--color-attention-fg);">Pending</span>'
+            : '<span class="badge active">In Progress</span>';
+
+          row.innerHTML = `
+            <td>${date}</td>
+            <td><code>${username}</code></td>
+            <td><code>${role}</code></td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${justification}">${justification}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <a href="${issue.html_url}" target="_blank" class="btn-secondary" style="padding: 4px 8px; font-size: 12px; display: inline-block; text-decoration: none;">
+                View #${issue.number}
+              </a>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading pending requests:', error);
+        document.getElementById('requests-table').innerHTML =
+          '<tr><td colspan="6" style="text-align: center; color: var(--color-danger-fg);">Error loading requests</td></tr>';
+      }
+    }
+
     // Tab switching
     function switchTab(tabName) {
       document.querySelectorAll('.tab-panel').forEach(panel => {
@@ -937,6 +1036,7 @@
       event.target.classList.add('active');
 
       if (tabName === 'drift') loadDriftHistory();
+      if (tabName === 'requests') loadPendingRequests();
     }
 
     // Disable all controls
@@ -952,6 +1052,16 @@
       statusDiv.className = `status ${type}`;
       statusDiv.textContent = message;
       statusDiv.style.display = 'block';
+    }
+
+    // Clear token from storage
+    function clearToken() {
+      if (confirm('Clear saved GitHub token? You will need to enter it again.')) {
+        localStorage.removeItem('github_token');
+        token = null;
+        alert('Token cleared! Please refresh the page.');
+        location.reload();
+      }
     }
   </script>
 </body>
