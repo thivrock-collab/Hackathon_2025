@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Zone - Admin Console</title>
+  <link rel="stylesheet" href="https://primer.github.io/css/index.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--color-canvas-default);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--color-border-default);
+    }
+    .header-icon {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #238636 0%, #3fb950 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 28px;
+    }
+    .header-content h1 {
+      color: var(--color-fg-default);
+      margin: 0;
+      font-size: 32px;
+    }
+    .header-content p {
+      color: var(--color-fg-muted);
+      margin: 4px 0 0 0;
+    }
+    .auth-status {
+      margin-left: auto;
+      text-align: right;
+    }
+    .auth-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: var(--color-success-subtle);
+      border: 1px solid var(--color-success-muted);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--color-success-fg);
+      font-weight: 500;
+    }
+    .auth-badge.unauthorized {
+      background: var(--color-danger-subtle);
+      border-color: var(--color-danger-muted);
+      color: var(--color-danger-fg);
+    }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--color-border-default);
+    }
+    .tab-button {
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--color-fg-muted);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .tab-button.active {
+      color: var(--color-fg-default);
+      border-bottom-color: #238636;
+    }
+    .tab-button:hover {
+      color: var(--color-fg-default);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    .card {
+      background: var(--color-canvas-subtle);
+      border: 1px solid var(--color-border-default);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-fg-default);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .form-grid.full {
+      grid-template-columns: 1fr;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      color: var(--color-fg-default);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    input, select, textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--color-border-default);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--color-canvas-default);
+      color: var(--color-fg-default);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #238636;
+      box-shadow: 0 0 0 3px rgba(35, 134, 54, 0.1);
+    }
+    .help-text {
+      font-size: 12px;
+      color: var(--color-fg-muted);
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #238636;
+      color: white;
+      flex: 1;
+    }
+    .btn-primary:hover {
+      background: #2ea043;
+    }
+    .btn-secondary {
+      background: var(--color-btn-default-bg);
+      color: var(--color-fg-default);
+      border: 1px solid var(--color-border-default);
+    }
+    .btn-secondary:hover {
+      background: var(--color-btn-hover-bg);
+    }
+    .btn-danger {
+      background: #da3633;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #f85149;
+    }
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .table th {
+      background: var(--color-neutral-subtle);
+      border: 1px solid var(--color-border-default);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--color-fg-default);
+    }
+    .table td {
+      border: 1px solid var(--color-border-default);
+      padding: 12px;
+      color: var(--color-fg-default);
+    }
+    .table tr:hover {
+      background: var(--color-neutral-subtle);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge.active {
+      background: var(--color-success-subtle);
+      color: var(--color-success-fg);
+    }
+    .badge.pending {
+      background: var(--color-attention-subtle);
+      color: var(--color-attention-fg);
+    }
+    .badge.expired {
+      background: var(--color-danger-subtle);
+      color: var(--color-danger-fg);
+    }
+    .status {
+      display: none;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border-left: 4px solid;
+      animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .status.success {
+      background: #dafbe1;
+      border-left-color: #1a7f37;
+      color: #033a16;
+    }
+    .status.error {
+      background: #ffebe9;
+      border-left-color: #da3633;
+      color: #5e0b0b;
+    }
+    .status.info {
+      background: #ddf4ff;
+      border-left-color: #0969da;
+      color: #0a3622;
+    }
+    .status.warning {
+      background: #fff8c5;
+      border-left-color: #9e6a03;
+      color: #4d2d0c;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--color-border-default);
+      border-top-color: #238636;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-icon">👤</div>
+      <div class="header-content">
+        <h1>Admin Console</h1>
+        <p>Landing Zone IAM Management</p>
+      </div>
+      <div class="auth-status">
+        <div class="auth-badge" id="auth-status">Admin Access</div>
+        <button onclick="location.reload()" style="margin-top: 8px; padding: 4px 8px; font-size: 11px; background: var(--color-btn-default-bg); border: 1px solid var(--color-border-default); border-radius: 4px; cursor: pointer;">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-button active" onclick="switchTab('requests')">
+        📨 Pending Requests
+      </button>
+      <button class="tab-button" onclick="switchTab('provision')">
+        ⚙️ Provision Access
+      </button>
+      <button class="tab-button" onclick="switchTab('users')">
+        👥 User Directory
+      </button>
+      <button class="tab-button" onclick="switchTab('audit')">
+        📋 Audit Log
+      </button>
+    </div>
+
+    <!-- Pending Requests Tab -->
+    <div id="requests" class="tab-panel active">
+      <div class="card">
+        <div class="section-title">Pending Access Requests</div>
+        <div id="requests-status" class="status"></div>
+        <div style="overflow-x: auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Justification</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="requests-table">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--color-fg-muted);">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provision Tab -->
+    <div id="provision" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Provision Access</div>
+        <div id="provision-status" class="status"></div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="provision-user">User</label>
+            <select id="provision-user">
+              <option value="">-- Select from pending requests --</option>
+            </select>
+            <div class="help-text">Select user from pending requests or enter manually</div>
+          </div>
+
+          <div class="form-group">
+            <label for="provision-role">Role</label>
+            <select id="provision-role">
+              <option value="">-- Select a role --</option>
+            </select>
+            <div class="help-text">Provisioning role</div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="provision-username-manual">Or Enter Username Manually</label>
+            <input type="text" id="provision-username-manual" placeholder="username">
+            <div class="help-text">Enter username if not in pending requests</div>
+          </div>
+
+          <div class="form-group">
+            <label for="provision-email">Email (Optional)</label>
+            <input type="email" id="provision-email" placeholder="user@company.com">
+            <div class="help-text">User's email address</div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-primary" onclick="provisionAccess()">
+            Provision Now
+          </button>
+          <button class="btn-secondary" onclick="resetProvisioning()">
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="users" class="tab-panel">
+      <div class="card">
+        <div class="section-title">User Directory</div>
+        <div style="overflow-x: auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Current Role</th>
+                <th>Status</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+            <tbody id="users-table">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--color-fg-muted);">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Log Tab -->
+    <div id="audit" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Recent Audit Events</div>
+        <div style="overflow-x: auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--color-fg-muted);">Loading audit log...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE = 'http://localhost:3000/api';
+    const ADMIN_USER = 'admin'; // You can make this dynamic
+
+    // State
+    let pendingRequests = [];
+    let users = [];
+    let roles = {};
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadRoles();
+      await loadUsers();
+      await loadPendingRequests();
+      await loadAuditLog();
+    });
+
+    // Load roles
+    async function loadRoles() {
+      try {
+        const response = await fetch(`${API_BASE}/roles`);
+        const rolesData = await response.json();
+        roles = rolesData;
+
+        const roleSelect = document.getElementById('provision-role');
+        roleSelect.innerHTML = '<option value="">-- Select a role --</option>';
+
+        Object.keys(rolesData).forEach(roleName => {
+          const option = document.createElement('option');
+          option.value = roleName;
+          option.textContent = roleName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          roleSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading roles:', error);
+        showStatus('provision-status', 'Error loading roles', 'error');
+      }
+    }
+
+    // Load users
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_BASE}/users`);
+        users = await response.json();
+
+        const tbody = document.getElementById('users-table');
+        tbody.innerHTML = '';
+
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-fg-muted);">No users found</td></tr>';
+          return;
+        }
+
+        users.forEach(user => {
+          const row = document.createElement('tr');
+          const badge = user.status === 'active' ? 'active' : 'expired';
+          const role = user.current_roles ? user.current_roles[0] : 'N/A';
+          const expiration = user.expiration_date || 'N/A';
+
+          row.innerHTML = `
+            <td><code>${user.username}</code></td>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td><code>${role}</code></td>
+            <td><span class="badge ${badge}">${user.status}</span></td>
+            <td>${new Date(expiration).toLocaleDateString()}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    }
+
+    // Load pending requests
+    async function loadPendingRequests() {
+      try {
+        const response = await fetch(`${API_BASE}/pending-requests`);
+        pendingRequests = await response.json();
+
+        const tbody = document.getElementById('requests-table');
+        const userSelect = document.getElementById('provision-user');
+
+        tbody.innerHTML = '';
+        userSelect.innerHTML = '<option value="">-- Select from pending requests --</option>';
+
+        if (pendingRequests.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-fg-muted);">No pending requests</td></tr>';
+          return;
+        }
+
+        pendingRequests.forEach(request => {
+          // Add to table
+          const row = document.createElement('tr');
+          const date = new Date(request.submittedAt).toLocaleString();
+
+          row.innerHTML = `
+            <td>${date}</td>
+            <td><code>${request.username}</code></td>
+            <td><code>${request.role}</code></td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${request.justification}">${request.justification}</td>
+            <td><span class="badge pending">Pending</span></td>
+            <td>
+              <button class="btn-primary btn-small" onclick="approveRequest('${request.id}')">Approve</button>
+              <button class="btn-danger btn-small" onclick="denyRequest('${request.id}')">Deny</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+
+          // Add to select
+          const option = document.createElement('option');
+          option.value = JSON.stringify(request);
+          option.textContent = `${request.username} → ${request.role}`;
+          userSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading pending requests:', error);
+        document.getElementById('requests-table').innerHTML =
+          '<tr><td colspan="6" style="text-align: center; color: var(--color-danger-fg);">Error loading requests</td></tr>';
+      }
+    }
+
+    // Load audit log
+    async function loadAuditLog() {
+      try {
+        const response = await fetch(`${API_BASE}/audit-log`);
+        const auditLog = await response.json();
+
+        const tbody = document.getElementById('audit-table');
+        tbody.innerHTML = '';
+
+        if (auditLog.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-fg-muted);">No audit events found</td></tr>';
+          return;
+        }
+
+        auditLog.reverse().slice(0, 50).forEach(entry => {
+          const row = document.createElement('tr');
+          const date = new Date(entry.timestamp).toLocaleString();
+
+          row.innerHTML = `
+            <td>${date}</td>
+            <td>${entry.event.replace(/_/g, ' ')}</td>
+            <td><code>${entry.username}</code></td>
+            <td><code>${entry.role || 'N/A'}</code></td>
+            <td style="font-size: 12px;">${JSON.stringify(entry.details || {})}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading audit log:', error);
+      }
+    }
+
+    // Approve request
+    async function approveRequest(requestId) {
+      const request = pendingRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      if (!confirm(`Approve access for ${request.username} → ${request.role}?`)) {
+        return;
+      }
+
+      try {
+        showStatus('requests-status', 'Provisioning access...', 'info');
+
+        const response = await fetch(`${API_BASE}/provision-access`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requestId: request.id,
+            username: request.username,
+            role: request.role,
+            email: request.email,
+            adminUser: ADMIN_USER
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showStatus('requests-status', `✅ Access provisioned for ${request.username}!`, 'success');
+          await loadPendingRequests();
+          await loadUsers();
+          await loadAuditLog();
+        } else {
+          showStatus('requests-status', `Error: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showStatus('requests-status', `Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Deny request
+    async function denyRequest(requestId) {
+      const request = pendingRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      const reason = prompt(`Deny request for ${request.username}? Enter reason:`);
+      if (!reason) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/deny-request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requestId: request.id,
+            adminUser: ADMIN_USER,
+            reason: reason
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showStatus('requests-status', `Request denied`, 'info');
+          await loadPendingRequests();
+          await loadAuditLog();
+        } else {
+          showStatus('requests-status', `Error: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showStatus('requests-status', `Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Handle user selection
+    document.getElementById('provision-user').addEventListener('change', function() {
+      if (this.value) {
+        const request = JSON.parse(this.value);
+        document.getElementById('provision-role').value = request.role;
+        document.getElementById('provision-username-manual').value = request.username;
+        document.getElementById('provision-email').value = request.email || '';
+      }
+    });
+
+    // Provision access
+    async function provisionAccess() {
+      const userSelect = document.getElementById('provision-user').value;
+      const manualUsername = document.getElementById('provision-username-manual').value.trim();
+      const role = document.getElementById('provision-role').value;
+      const email = document.getElementById('provision-email').value.trim();
+
+      let username = '';
+      let requestId = null;
+
+      if (userSelect) {
+        const request = JSON.parse(userSelect);
+        username = request.username;
+        requestId = request.id;
+      } else if (manualUsername) {
+        username = manualUsername;
+      }
+
+      if (!username || !role) {
+        showStatus('provision-status', 'Please select/enter user and role', 'error');
+        return;
+      }
+
+      if (!confirm(`Provision ${role} access for ${username}?`)) {
+        return;
+      }
+
+      try {
+        showStatus('provision-status', 'Provisioning access...', 'info');
+
+        const response = await fetch(`${API_BASE}/provision-access`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requestId: requestId,
+            username: username,
+            role: role,
+            email: email,
+            adminUser: ADMIN_USER
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showStatus('provision-status',
+            `✅ Access provisioned for ${username}! Expires: ${new Date(result.expirationDate).toLocaleDateString()}`,
+            'success'
+          );
+          resetProvisioning();
+          await loadPendingRequests();
+          await loadUsers();
+          await loadAuditLog();
+        } else {
+          showStatus('provision-status', `Error: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showStatus('provision-status', `Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Reset provisioning form
+    function resetProvisioning() {
+      document.getElementById('provision-user').value = '';
+      document.getElementById('provision-role').value = '';
+      document.getElementById('provision-username-manual').value = '';
+      document.getElementById('provision-email').value = '';
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+      });
+      document.getElementById(tabName).classList.add('active');
+
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      if (tabName === 'requests') loadPendingRequests();
+      if (tabName === 'users') loadUsers();
+      if (tabName === 'audit') loadAuditLog();
+    }
+
+    // Show status message
+    function showStatus(elementId, message, type) {
+      const statusDiv = document.getElementById(elementId);
+      statusDiv.className = `status ${type}`;
+      statusDiv.textContent = message;
+      statusDiv.style.display = 'block';
+
+      if (type === 'success' || type === 'info') {
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+  </script>
+</body>
+</html>

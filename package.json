@@ -1,4 +1,17 @@
 {
+  "name": "landing-zone",
+  "version": "1.0.0",
+  "description": "Landing Zone IAM System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "js-yaml": "^4.1.0"
+  },
   "devDependencies": {
     "gh-pages": "^6.3.0"
   }

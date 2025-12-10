@@ -1,0 +1,89 @@
+[
+  {
+    "timestamp": "2025-12-10T04:54:36.495Z",
+    "event": "access_request_submitted",
+    "username": "test-user",
+    "role": "devops-full",
+    "details": {
+      "justification": "Testing the system"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T04:55:07.622Z",
+    "event": "access_provisioned",
+    "username": "test-user",
+    "role": "devops-full",
+    "provisionedBy": "admin",
+    "expiresAt": "2026-03-10T04:55:07.622Z",
+    "details": {
+      "ttlDays": 90,
+      "requestId": "1765342476495"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T04:59:22.446Z",
+    "event": "access_request_submitted",
+    "username": "saithivyah",
+    "role": "devops-limited",
+    "details": {
+      "justification": "Implementing the feature in the pipeline"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T04:59:37.663Z",
+    "event": "access_provisioned",
+    "username": "saithivyah",
+    "role": "devops-limited",
+    "provisionedBy": "admin",
+    "expiresAt": "2026-02-08T04:59:37.663Z",
+    "details": {
+      "ttlDays": 60,
+      "requestId": "1765342762446"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T05:00:02.015Z",
+    "event": "access_request_submitted",
+    "username": "Thiv",
+    "role": "security",
+    "details": {
+      "justification": "read and audit the logs"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T05:00:17.052Z",
+    "event": "access_provisioned",
+    "username": "Thiv",
+    "role": "security",
+    "provisionedBy": "admin",
+    "expiresAt": "2026-06-08T05:00:17.052Z",
+    "details": {
+      "ttlDays": 180,
+      "requestId": "1765342802015"
+    }
+  },
+  {
+    "timestamp": "2025-12-10T05:13:43.099Z",
+    "event": "access_provisioned",
+    "username": "saithivyah",
+    "role": "reader",
+    "provisionedBy": "admin",
+    "expiresAt": "2026-01-09T05:13:43.099Z",
+    "details": {
+      "ttlDays": 30,
+      "requestId": null
+    }
+  },
+  {
+    "timestamp": "2025-12-10T05:14:40.193Z",
+    "event": "access_provisioned",
+    "username": "saithivyah",
+    "role": "devops-full",
+    "provisionedBy": "admin",
+    "expiresAt": "2026-03-10T05:14:40.193Z",
+    "details": {
+      "ttlDays": 90,
+      "requestId": null
+    }
+  }
+]

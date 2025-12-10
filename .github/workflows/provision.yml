@@ -31,7 +31,7 @@ jobs:
       is_admin: ${{ steps.validate-approval.outputs.is_admin }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.1
 
       - name: Install dependencies
         run: |

@@ -334,11 +334,30 @@
     // Load roles from roles.yml
     async function loadRoles() {
       try {
-        // Try local server first, fallback to GitHub
-        const response = await fetch('/roles.yml').catch(() => fetch(`${RAW_URL}/roles.yml`));
+        let response;
+        
+        // Try multiple paths: relative, absolute, and GitHub raw
+        const paths = [
+          './roles.yml',           // Relative to current directory
+          '/landing-zone/roles.yml', // GitHub Pages absolute path
+          `${RAW_URL}/roles.yml`   // GitHub raw content
+        ];
+        
+        for (const path of paths) {
+          try {
+            response = await fetch(path);
+            if (response.ok) {
+              console.log(`Successfully loaded roles.yml from: ${path}`);
+              break;
+            }
+          } catch (err) {
+            console.log(`Failed to fetch from ${path}: ${err.message}`);
+            continue;
+          }
+        }
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch roles.yml: ${response.status}`);
+        if (!response || !response.ok) {
+          throw new Error(`Failed to fetch roles.yml from all sources`);
         }
 
         const yaml = await response.text();
@@ -389,8 +408,30 @@
       }
 
       try {
-        // Try local server first, fallback to GitHub
-        const response = await fetch('/roles.yml').catch(() => fetch(`${RAW_URL}/roles.yml`));
+        let response;
+        
+        // Try multiple paths: relative, absolute, and GitHub raw
+        const paths = [
+          './roles.yml',           // Relative to current directory
+          '/landing-zone/roles.yml', // GitHub Pages absolute path
+          `${RAW_URL}/roles.yml`   // GitHub raw content
+        ];
+        
+        for (const path of paths) {
+          try {
+            response = await fetch(path);
+            if (response.ok) {
+              break;
+            }
+          } catch (err) {
+            continue;
+          }
+        }
+
+        if (!response || !response.ok) {
+          throw new Error('Could not load roles.yml');
+        }
+
         const yaml = await response.text();
 
         // Extract description for selected role

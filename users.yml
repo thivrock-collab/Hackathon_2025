@@ -1,126 +1,122 @@
 users:
-  - username: "alice"
-    name: "Alice Johnson"
-    email: "alice@acme.example"
+  - username: alice-devops
+    name: Alice Chen
+    email: alice.chen@company.com
+    github_handle: '@alice-devops'
+    teams:
+      - platform-engineering
+      - devops
+    current_roles:
+      - devops-full
+    status: active
+    mfa_enabled: true
+    last_provisioned: '2025-12-01T10:30:00Z'
+    expiration_date: '2026-03-01T00:00:00Z'
+  - username: bob-devops
+    name: Bob Singh
+    email: bob.singh@company.com
+    github_handle: '@bob-devops'
     teams:
       - devops
-    status: "active"
-  - username: "bob"
-    name: "Bob Smith"
-    email: "bob@acme.example"
+    current_roles:
+      - devops-limited
+    status: active
+    mfa_enabled: true
+    last_provisioned: '2025-11-15T14:22:00Z'
+    expiration_date: '2026-01-14T00:00:00Z'
+  - username: carol-security
+    name: Carol Williamson
+    email: carol.williamson@company.com
+    github_handle: '@carol-security'
     teams:
       - security
-    status: "inactive"
-  - username: "carol"
-    name: "Carol Nguyen"
-    email: "carol@acme.example"
-    teams:
-      - readers
-    status: "active"
-# Landing Zone User Directory
-# Central source of truth for team members and their current access
-users:
-  # DevOps Team
-  - username: "alice-devops"
-    name: "Alice Chen"
-    email: "alice.chen@company.com"
-    github_handle: "@alice-devops"
-    teams:
-      - "platform-engineering"
-      - "devops"
+      - compliance
     current_roles:
-      - "devops-full"
-    status: "active"
+      - security
+    status: active
     mfa_enabled: true
-    last_provisioned: "2025-12-01T10:30:00Z"
-    expiration_date: "2026-03-01T00:00:00Z"
-    
-  - username: "bob-devops"
-    name: "Bob Singh"
-    email: "bob.singh@company.com"
-    github_handle: "@bob-devops"
+    last_provisioned: '2025-11-20T09:15:00Z'
+    expiration_date: '2026-05-20T00:00:00Z'
+  - username: dan-reader
+    name: Dan Patel
+    email: dan.patel@company.com
+    github_handle: '@dan-reader'
     teams:
-      - "devops"
+      - operations
     current_roles:
-      - "devops-limited"
-    status: "active"
-    mfa_enabled: true
-    last_provisioned: "2025-11-15T14:22:00Z"
-    expiration_date: "2026-01-14T00:00:00Z"
-
-  # Security Team
-  - username: "carol-security"
-    name: "Carol Williamson"
-    email: "carol.williamson@company.com"
-    github_handle: "@carol-security"
-    teams:
-      - "security"
-      - "compliance"
-    current_roles:
-      - "security"
-    status: "active"
-    mfa_enabled: true
-    last_provisioned: "2025-11-20T09:15:00Z"
-    expiration_date: "2026-05-20T00:00:00Z"
-
-  # Operations/Reader
-  - username: "dan-reader"
-    name: "Dan Patel"
-    email: "dan.patel@company.com"
-    github_handle: "@dan-reader"
-    teams:
-      - "operations"
-    current_roles:
-      - "reader"
-    status: "active"
+      - reader
+    status: active
     mfa_enabled: false
-    last_provisioned: "2025-11-01T11:45:00Z"
-    expiration_date: "2025-12-01T00:00:00Z"
-
-  # Admin User
-  - username: "eve-admin"
-    name: "Eve Rodriguez"
-    email: "eve.rodriguez@company.com"
-    github_handle: "@eve-admin"
+    last_provisioned: '2025-11-01T11:45:00Z'
+    expiration_date: '2025-12-01T00:00:00Z'
+  - username: eve-admin
+    name: Eve Rodriguez
+    email: eve.rodriguez@company.com
+    github_handle: '@eve-admin'
     teams:
-      - "admins"
-      - "platform-engineering"
+      - admins
+      - platform-engineering
     current_roles:
-      - "devops-full"
-    status: "active"
+      - devops-full
+    status: active
     mfa_enabled: true
     is_admin: true
-    last_provisioned: "2025-10-01T08:00:00Z"
-    expiration_date: "2026-10-01T00:00:00Z"
-
-# Team membership mapping (for admin console filtering)
+    last_provisioned: '2025-10-01T08:00:00Z'
+    expiration_date: '2026-10-01T00:00:00Z'
+  - username: test-user
+    name: test-user
+    email: test@company.com
+    teams: []
+    current_roles:
+      - devops-full
+    status: active
+    mfa_enabled: false
+    last_provisioned: '2025-12-10T04:55:07.622Z'
+    expiration_date: '2026-03-10T04:55:07.622Z'
+  - username: saithivyah
+    name: saithivyah
+    email: saithivyah@gmail.com
+    teams: []
+    current_roles:
+      - devops-full
+    status: active
+    mfa_enabled: false
+    last_provisioned: '2025-12-10T05:14:40.193Z'
+    expiration_date: '2026-03-10T05:14:40.193Z'
+  - username: Thiv
+    name: Thiv
+    email: thivrock@gmail.com
+    teams: []
+    current_roles:
+      - security
+    status: active
+    mfa_enabled: false
+    last_provisioned: '2025-12-10T05:00:17.052Z'
+    expiration_date: '2026-06-08T05:00:17.052Z'
 teams:
   platform-engineering:
-    description: "Platform engineering team"
+    description: Platform engineering team
     members:
-      - "alice-devops"
-      - "eve-admin"
+      - alice-devops
+      - eve-admin
   devops:
-    description: "DevOps team"
+    description: DevOps team
     members:
-      - "alice-devops"
-      - "bob-devops"
+      - alice-devops
+      - bob-devops
   security:
-    description: "Security team"
+    description: Security team
     members:
-      - "carol-security"
+      - carol-security
   compliance:
-    description: "Compliance team"
+    description: Compliance team
     members:
-      - "carol-security"
+      - carol-security
   operations:
-    description: "Operations team"
+    description: Operations team
     members:
-      - "dan-reader"
+      - dan-reader
   admins:
-    description: "System administrators"
+    description: System administrators
     members:
-      - "eve-admin"
-
-# User status values: active, suspended, offboarded, on-leave
-# MFA requirement is per-user and role-dependent
+      - eve-admin
